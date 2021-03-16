@@ -1,0 +1,2155 @@
+---
+title: "Remodeling-Project-Final-Code"
+author: "Kirsten"
+date: "5/12/2020"
+output: html_document
+---
+
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+```{r}
+# Load packages
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(deSolve)
+library(metR)
+```
+
+
+Figure 1
+
+```{r myfigure1, cache=T}
+# ms, mi/mr values
+ms_1 <- 0.2
+mir_1 <- 0.5
+ms_2 <- 0.2
+mir_2 <- 1
+ms_3 <- 0.6
+mir_3 <- 0.5
+ms_4 <- 0.4
+mir_4 <- 1
+ms_5 <- 0.6
+mir_5 <- 1
+ms_6 <- 0.4
+mir_6 <- 2
+
+# rho values
+rho <- seq(from = 0, to = 1, by = 0.01)
+
+# calculate R0
+R0_1 <- ((ms_1*mir_1-1)*rho + 1)^-1
+R0_2 <-  ((ms_2*mir_2-1)*rho + 1)^-1
+R0_3 <- ((ms_3*mir_3-1)*rho + 1)^-1
+R0_4 <- ((ms_4*mir_4-1)*rho + 1)^-1
+R0_5 <- ((ms_5*mir_5-1)*rho + 1)^-1
+R0_6 <- ((ms_6*mir_6-1)*rho + 1)^-1
+
+# create the figure
+plot(x = NA, xlim = c(0, 1), ylim = c(1, 2.5),
+     xlab = expression("Vaccination Coverage, "~rho),
+     ylab = expression("Basic reproduction number,"~R[0]),
+     las = 1, type ="n", xaxs = "i", yaxs = "i")
+lines(x = rho, y = R0_1, col = "purple", lwd = 3, lty = 2)
+lines(x = rho, y = R0_2, col = "cyan", lwd = 3)
+lines(x = rho, y = R0_3, col = "blue", lwd = 3)
+lines(x = rho, y = R0_4, col = "green", lwd = 3, lty = 2)
+lines(x = rho, y = R0_5, col = "black", lwd = 3, lty = 2)
+lines(x = rho, y = R0_6, col = "red", lwd = 3)
+legend("topleft", legend = c("ms=0.2, mi/mr=0.5", "ms=0.2, mi/mr=1", "ms=0.6, mi/mr=0.5", "ms=0.4, mi/mr=1", "ms=0.6, mi/mr=1", "ms=0.4, mi/mr=2"), col=c("deeppink", "cyan", "purple", "green", "black", "red"), pch = 16)
+```
+
+
+Figure 2a
+
+```{r myfigure2a, cache=T}
+# Contour plot/heat map
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0  # disease-induced death for non-vaccinated individuals per infected per day
+# mi <- 1.25  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+mr <- 1  # modification of recovery rate for vaccinated individuals
+steps <- 30 # model iterations
+ms <- 0.6 # modification of susceptibility for vaccinated individuals
+  
+  # create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_mi <- rep(NA, steps^2)
+  figure_attack_rate <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  mi <- 0 - 6/steps
+  for (i in 1:steps) {
+    mi <- mi + (6/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 100
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe to access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+    
+    # attack rate
+   Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+    index <- index + 1
+    figure_mi[index] <- mi
+    figure_rho[index] <- rho
+    figure_attack_rate[index] <- attack_rate
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_mi, figure_attack_rate)
+
+# plot results
+ggplot(df, aes(x = figure_rho, y = figure_mi, z = figure_attack_rate))  + stat_contour() +
+  ylim(0,6) + geom_contour_fill() + scale_fill_gradientn(colours = rev(rainbow(5))) +
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified viral shedding,"~m[i]/~m[r])) +
+  labs(fill = "A") + ggtitle("Attack rate, A") 
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0  # disease-induced death for non-vaccinated individuals per infected per day
+# mi <- 1.25  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+mr <- 1  # modification of recovery rate for vaccinated individuals
+steps <- 30 # model iterations
+ms <- 0.6 # modification of susceptibility for vaccinated individuals
+  
+  # create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_mi <- rep(NA, steps^2)
+  figure_attack_rate <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  mi <- 0 - 6/steps
+  for (i in 1:steps) {
+    mi <- mi + (6/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 150
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe to access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+    
+    # attack rate
+   Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+    index <- index + 1
+    figure_mi[index] <- mi
+    figure_rho[index] <- rho
+    figure_attack_rate[index] <- attack_rate
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_mi, figure_attack_rate)
+
+# plot results
+ggplot(df, aes(x = figure_rho, y = figure_mi, fill = figure_attack_rate)) + geom_tile() +
+  scale_fill_gradientn(colours = rev(rainbow(5))) + ylim(0,6) + 
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified viral shedding,"~m[i]/~m[r])) +
+  labs(fill = "A") + ggtitle("Attack rate, A")
+
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - delta*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*delta*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ delta*I + md*delta*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+delta <- 0.0 # disease-induced death for non-vaccinated individuals per infected per day
+ms <- 0.6  #modification of susceptibility for vaccinated individuals
+md <- 0.5  #modification of death rate for vaccinated individuals
+steps <- 100 # model iterations
+
+# create vectors for results of the for loop
+figure_attack_rate_1 <- rep(NA,steps)
+figure_attack_rate_2 <- rep(NA,steps)
+figure_attack_rate_3 <- rep(NA,steps)
+
+for (j in 1:3) { 
+
+  if (j == 1) {
+mi <- 0.5 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+  }
+    if (j == 2) {
+mi <- 1.0 # vaccine modified infectivity
+mr <- 1.0  # modification of recovery rate for vaccinated individuals
+    }
+    if (j == 3) {
+mi <- 2.0 # vaccine modified infectivity
+mr <- 1.0  # modification of recovery rate for vaccinated individuals
+    }
+
+figure_rho <- rep(NA,steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((delta + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, delta=delta)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+# sirv_out
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+sirv_result = as.data.frame(sirv_out)
+
+# final size of vaccinated and susceptible populations
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# calculations of attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+
+if(j == 1) figure_attack_rate_1[i] <- attack_rate
+if(j == 2) figure_attack_rate_2[i] <- attack_rate
+if(j == 3) figure_attack_rate_3[i] <- attack_rate
+
+  } # End of inner loop
+} # End of outer loop
+
+
+# plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_attack_rate_1, type="l", ylim= c(0, 0.8), xlim = c(0,1), col = "blue", xlab = expression("Vaccination Coverage, "~rho), ylab=("Attack rate, A"), main= "Figure 2a: Attack rate (A) based on varying rho and mi/mr (ms = 0.6)" )
+lines(x=figure_rho, y=figure_attack_rate_2, type="l", col= "red")
+lines(x=figure_rho, y=figure_attack_rate_3, type="l", col= "yellow")
+legend("right", legend = c("mi/mr = 0.5", "mi/mr = 1", "mi/mr = 2"), col=c("blue", "red", "yellow"), pch = 16)
+```
+
+
+Figure 2b
+
+```{r myfigure2b, cache =T}
+# Contour plot/heat map
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000
+R0 <- 1.5 #basic reproductive number
+gamma <- 0.33  #recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0  #disease-induced death for non-vaccinated individuals per infected per day
+# mi <- 1.25  #modification of susceptibility for vaccinated individuals
+md <- 0.9  #modification of death rate for vaccinated individuals
+mr <- 1  #modification of recovery rate for vaccinated individuals
+steps <- 30
+ms <- 0.2
+  
+  #create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_mi <- rep(NA, steps^2)
+  figure_attack_rate <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  mi <- 0 - 6/steps
+  for (i in 1:steps) {
+    mi <- mi + (6/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 100
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    #sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init, method = "euler")
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    #switch matrix output of ode to a dataframe so you can access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    #at end of epidemic the vaccinated population is at its max and susceptible at its min
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+    
+    # attack rate
+   Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+    index <- index + 1
+    figure_mi[index] <- mi
+    figure_rho[index] <- rho
+    figure_attack_rate[index] <- attack_rate
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_mi, figure_attack_rate)
+
+#plot results
+ggplot(df, aes(x = figure_rho, y = figure_mi, z = figure_attack_rate))  + stat_contour() +
+  ylim(0,6) + geom_contour_fill() + scale_fill_gradientn(colours = rev(rainbow(5))) +
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified viral shedding,"~m[i]/~m[r])) +
+  labs(fill = "A") + ggtitle("Attack rate, A") 
+
+
+
+# Part 2
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000
+R0 <- 1.5 #basic reproductive number
+gamma <- 0.33  #recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0 #0.3/1000  #disease-induced death for non-vaccinated individuals per infected per day
+ms <- 0.2  #modification of susceptibility for vaccinated individuals
+md <- 0.5  #modification of death rate for vaccinated individuals
+steps <- 100
+
+
+figure_attack_rate_1 <- rep(NA,steps)
+figure_attack_rate_2 <- rep(NA,steps)
+figure_attack_rate_3 <- rep(NA,steps)
+
+for (j in 1:3) { 
+
+  if (j == 1) {
+mi <- 0.5 #vaccine modified infectivity
+mr <- 1  #modification of recovery rate for vaccinated individuals
+  }
+    if (j == 2) {
+mi <- 1.0 #vaccine modified infectivity
+mr <- 1.0  #modification of recovery rate for vaccinated individuals
+    }
+    if (j == 3) {
+mi <- 2.0 #vaccine modified infectivity
+mr <- 1.0  #modification of recovery rate for vaccinated individuals
+    }
+  
+figure_rho <- rep(NA,steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+  # rho <- 0.5
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+#sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init, method = "euler")
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+sirv_result = as.data.frame(sirv_out)
+
+# final vaccinated and susceptible populations
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+
+if(j == 1) figure_attack_rate_1[i] <- attack_rate
+if(j == 2) figure_attack_rate_2[i] <- attack_rate
+if(j == 3) figure_attack_rate_3[i] <- attack_rate
+
+  } # End of inner loop
+} # End of outer loop
+
+
+#plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_attack_rate_1, type="l", ylim= c(0, 0.6), xlim = c(0,1), col = "blue", xlab = expression("Vaccination Coverage, "~rho), ylab=("Attack rate, A"), main = "Figure 2b: Attack rate (A) based on varying rho and mi/mr (ms = 0.2)" )
+lines(x=figure_rho, y=figure_attack_rate_2, type="l", col= "red")
+lines(x=figure_rho, y=figure_attack_rate_3, type="l", col= "yellow")
+legend("topright", legend = c("mi/mr = 0.5", "mi/mr = 1", "mi/mr = 2"), col=c("blue", "red", "yellow"), pch = 16)
+```
+
+
+Figure 3a
+
+```{r myfigure3a, cache = T}
+# contour plot
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000
+R0 <- 1.5 #basic reproductive number
+gamma <- 0.33  #recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.00  #disease-induced death for non-vaccinated individuals per infected per day
+mi <- 2  #modification of susceptibility for vaccinated individuals
+md <- 0.9  #modification of death rate for vaccinated individuals
+mr <- 1  #modification of recovery rate for vaccinated individuals
+steps <- 30
+  
+  #create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_ms <- rep(NA, steps^2)
+  figure_attack_rate <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  ms <- 0 - 1/steps
+  for (i in 1:steps) {
+    ms <- ms + (1/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 100
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    #sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init, method = "euler")
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    #switch matrix output of ode to a dataframe so you can access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    #at end of epidemic the vaccinated population is at its max and susceptible at its min
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+    
+    # attack rate
+   Av <- (rho*N0-Vf)/(rho*N0)
+  An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+  attack_rate <- rho*Av + (1-rho)*An
+    index <- index + 1
+    figure_ms[index] <- ms
+    figure_rho[index] <- rho
+    figure_attack_rate[index] <- attack_rate
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_ms, figure_attack_rate)
+
+#plot results
+ggplot(df, aes(x = figure_rho, y = figure_ms, z = figure_attack_rate))  + stat_contour() +
+  ylim(0,0.6) + geom_contour_fill() + scale_fill_gradientn(colours = rev(rainbow(5))) +
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified susceptibility,"~m[s])) +
+  labs(fill = "A") + ggtitle("Attack rate, A") 
+
+
+
+
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000
+R0 <- 1.5 #basic reproductive number
+gamma <- 0.33  #recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0 #0.3/1000  #disease-induced death for non-vaccinated individuals per infected per day
+mi <- 2 #vaccine modified infectivity
+mr <- 1  #modification of recovery rate for vaccinated individuals
+md <- 0.5  #modification of death rate for vaccinated individuals
+steps <- 100
+
+
+figure_attack_rate_1 <- rep(NA,steps)
+figure_attack_rate_2 <- rep(NA,steps)
+figure_attack_rate_3 <- rep(NA,steps)
+
+for (j in 1:3) { 
+ms <- 0.2  #modification of susceptibility for vaccinated individuals
+  if (j == 1) {
+
+  }
+    if (j == 2) {
+ms <- 0.4  #modification of susceptibility for vaccinated individuals
+    }
+    if (j == 3) {
+ms <- 0.6  #modification of susceptibility for vaccinated individuals
+    }
+  
+
+#create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+  # rho <- 0.5
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+#sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init, method = "euler")
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+#switch matrix output of ode to a dataframe so you can access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+#at end of epidemic the vaccinated population is at its max and susceptible at its min
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+
+if(j == 1) figure_attack_rate_1[i] <- attack_rate
+if(j == 2) figure_attack_rate_2[i] <- attack_rate
+if(j == 3) figure_attack_rate_3[i] <- attack_rate
+
+  } # End of inner loop
+} # End of outer loop
+
+
+#plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_attack_rate_1, type="l", ylim= c(0, 0.8), xlim = c(0,1), col = "blue", xlab = expression("Vaccination Coverage, "~rho), ylab=("Attack rate, A"), main="Figure 3a: Attack rate (A) based on varying ρ and ms, (mi/mr = 2)" )
+lines(x=figure_rho, y=figure_attack_rate_2, type="l", col= "red")
+lines(x=figure_rho, y=figure_attack_rate_3, type="l", col= "yellow")
+legend("topright", legend = c("ms = 0.2", "ms = 0.4", "ms = 0.6"), col=c("blue", "red", "yellow"), pch = 16)
+```
+
+Figure 3b
+
+```{r myfigure3b, cache = T}
+# contour plot
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000
+R0 <- 1.5 #basic reproductive number
+gamma <- 0.33  #recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.000 #0.3/1000  #disease-induced death for non-vaccinated individuals per infected per day
+mi <- 0.5  #modification of susceptibility for vaccinated individuals
+md <- 0.9  #modification of death rate for vaccinated individuals
+mr <- 1  #modification of recovery rate for vaccinated individuals
+steps <- 30
+  
+  #create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_ms <- rep(NA, steps^2)
+  figure_attack_rate <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  ms <- 0 - 1/steps
+  for (i in 1:steps) {
+    ms <- ms + (1/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 100
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    #sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init, method = "euler")
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    #switch matrix output of ode to a dataframe so you can access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    #at end of epidemic the vaccinated population is at its max and susceptible at its min
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+    
+    # attack rate
+   Av <- (rho*N0-Vf)/(rho*N0)
+  An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+  attack_rate <- rho*Av + (1-rho)*An
+    index <- index + 1
+    figure_ms[index] <- ms
+    figure_rho[index] <- rho
+    figure_attack_rate[index] <- attack_rate
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_ms, figure_attack_rate)
+
+#plot results
+ggplot(df, aes(x = figure_rho, y = figure_ms, z = figure_attack_rate))  + stat_contour() +
+  ylim(0,0.6) + geom_contour_fill() + scale_fill_gradientn(colours = rev(rainbow(5))) +
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified susceptibility,"~m[s])) +
+  labs(fill = "A") + ggtitle("Attack rate, A") 
+
+
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000
+R0 <- 1.5 #basic reproductive number
+gamma <- 0.33  #recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0 #0.3/1000  #disease-induced death for non-vaccinated individuals per infected per day
+mi <- 0.5 #vaccine modified infectivity
+mr <- 1 #modification of recovery rate for vaccinated individuals
+md <- 0.5  #modification of death rate for vaccinated individuals
+steps <- 100
+
+
+figure_attack_rate_1 <- rep(NA,steps)
+figure_attack_rate_2 <- rep(NA,steps)
+figure_attack_rate_3 <- rep(NA,steps)
+
+for (j in 1:3) { 
+ms <- 0.2  #modification of susceptibility for vaccinated individuals
+  if (j == 1) {
+
+  }
+    if (j == 2) {
+ms <- 0.4  #modification of susceptibility for vaccinated individuals
+    }
+    if (j == 3) {
+ms <- 0.6  #modification of susceptibility for vaccinated individuals
+    }
+  
+
+#create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+  # rho <- 0.5
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+#sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init, method = "euler")
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+#switch matrix output of ode to a dataframe so you can access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+#at end of epidemic the vaccinated population is at its max and susceptible at its min
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+
+if(j == 1) figure_attack_rate_1[i] <- attack_rate
+if(j == 2) figure_attack_rate_2[i] <- attack_rate
+if(j == 3) figure_attack_rate_3[i] <- attack_rate
+
+  } # End of inner loop
+} # End of outer loop
+
+#plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_attack_rate_1, type="l", ylim= c(0, 0.6), xlim = c(0,1), col = "blue", xlab = expression("Vaccination Coverage, "~rho), ylab=("Attack rate, A"), main = "Figure 3b: Attack rate (A) based on varying ρ and ms, (mi/mr = 0.5)" )
+lines(x=figure_rho, y=figure_attack_rate_2, type="l", col= "red")
+lines(x=figure_rho, y=figure_attack_rate_3, type="l", col= "yellow")
+legend("topright", legend = c("ms = 0.2", "ms = 0.4", "ms = 0.6"), col=c("blue", "red", "yellow"), pch = 16)
+```
+
+
+Figure 4
+
+```{r, myfigure4, cache = T}
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.00  # disease-induced death for non-vaccinated individuals per infected per day
+mi <- 2  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+mr <- 1  # modification of recovery rate for vaccinated individuals
+steps <- 30 # model iterations
+  
+  #create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_ms <- rep(NA, steps^2)
+  figure_ratio_value <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  ms <- 0 - 1/steps
+  for (i in 1:steps) {
+    ms <- ms + (1/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 100
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe to access colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+    
+    # attack rate
+   Av <- (rho*N0-Vf)/(rho*N0)
+  An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+ 
+ ratio_value <-  (((-1)*R0*An) + ((mi/mr)*R0*(1- ((1-An)^ms) ))) / (((1-An)^(-1)) - ((1-rho)*R0) - ( (rho*ms*(mi/mr)*R0*( (1-An)^(ms-1) ) ) ))
+                                                     
+    index <- index + 1
+    figure_ms[index] <- ms
+    figure_rho[index] <- rho
+    figure_ratio_value[index] <- ratio_value
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_ms, figure_ratio_value)
+
+# plot results
+ggplot(df, aes(x = figure_rho, y = figure_ms, z = figure_ratio_value)) +
+  ylim(0,0.6) + geom_contour_fill(breaks = c(-100, 0, 100)) +   scale_fill_gradient(low = "red", high = "yellow") + 
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified susceptibility,"~m[s])) +
+   ggtitle("Sign of dA/d"~rho) 
+```
+
+
+
+
+
+Figure 5 (a & b)
+
+```{r, myfigure5, cache = T, fig.hold = 'hold', out.width="50.0%"}
+# Figure 5a
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0  # disease-induced death for non-vaccinated individuals per infected per day
+
+mi <- 2 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+ms <- 0.4  # modification of susceptibility for vaccinated individuals
+md <- 0.5  # modification of death rate for vaccinated individuals
+
+
+steps <- 100
+#create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+figure_attack_rate <- rep(NA,steps)
+figure_Av <- rep(NA, steps)
+figure_An <- rep(NA, steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+# switch matrix output of ode to a dataframe to access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+figure_attack_rate[i] <- attack_rate
+figure_Av[i] <- Av
+figure_An[i] <- An
+
+}
+# End of loop
+
+#plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_attack_rate, type="l", col="blue", ylim=c(0.2, 0.7), xlab = expression("Vaccination Coverage, "~rho), ylab=("attack rate"), main ="Figure 5a: Attack rates (A, Av, An) based on varying ρ" )
+lines(x=figure_rho, y=figure_Av, type="l", col = "red")
+lines(x=figure_rho, y=figure_An, type="l", col = "yellow")
+legend("topright", legend = c("A", "Av", "An"), col=c("blue", "red", "yellow"), pch = 16)
+
+
+# Figure 5b
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0  # disease-induced death for non-vaccinated individuals per infected per day
+
+mi <- 1 # vaccine modified infectivity
+mr <- 0.5  # modification of recovery rate for vaccinated individuals
+ms <- 0.4  # modification of susceptibility for vaccinated individuals
+md <- 0.5  # modification of death rate for vaccinated individuals
+
+
+steps <- 100
+# create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+figure_final_size <- rep(NA,steps)
+figure_Fv <- rep(NA, steps)
+figure_Fn <- rep(NA, steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+#switch matrix output of ode to a dataframe to access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+# at end of epidemic the vaccinated population is at its max and susceptible at its min
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# final size
+final_size <- (V0 - Vf) + (S0 - Sf)
+Fv <- V0 - Vf
+Fn <- S0 - Sf
+  
+figure_rho[i] <- rho
+figure_final_size[i] <- final_size
+figure_Fv[i] <- Fv
+figure_Fn[i] <- Fn
+
+}
+# End of loop
+
+# plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_final_size, type="l", col="blue", ylim=c(0,600), xlab = expression("Vaccination Coverage, "~rho), ylab=("final size"), main = "Figure 5b: Final sizes (F, Fv, Fn) based on varying ρ" )
+lines(x=figure_rho, y=figure_Fv, type="l", col = "red")
+lines(x=figure_rho, y=figure_Fn, type="l", col = "yellow")
+legend("topright", legend = c("F", "Fv", "Fn"), col=c("blue", "red", "yellow"), pch = 16)
+```
+
+Figure 7a
+
+```{r, myfigure7a, cache = T, fig.hold = 'hold', out.width="50.0%"}
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.001  # disease-induced death for non-vaccinated individuals per infected per day
+mi <- 1.25  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+mr <- 1  # modification of recovery rate for vaccinated individuals
+steps <- 30 # model iterations
+  
+  # create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_ms <- rep(NA, steps^2)
+  figure_cfr <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  ms <- 0 - 1/steps
+  for (i in 1:steps) {
+    ms <- ms + (1/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 200
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe to access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+    
+    # CFR %
+   cfr <-  (N0 - Sf - Vf - Rf) / (N0 - Sf - Vf) * 100
+    index <- index + 1
+    figure_ms[index] <- ms
+    figure_rho[index] <- rho
+    figure_cfr[index] <- cfr
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_ms, figure_cfr)
+
+# plot results
+ggplot(df, aes(x = figure_rho, y = figure_ms, fill = figure_cfr)) + geom_tile() +
+  scale_fill_gradientn(colours = rev(rainbow(5))) + ylim(0,0.6) + 
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified susceptibility,"~m[s])) +
+  labs(fill = "CFR (%)") + ggtitle("Figure 7ai: CFR % for varying values of ρ and ms")
+
+
+# Figure 7aii
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.001 # disease-induced death for non-vaccinated individuals per infected per day
+mi <- 1.25  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+mr <- 1  # modification of recovery rate for vaccinated individuals
+steps <- 30 # model iterations
+
+# create vectors for results of the for loop
+figure_rho <- rep(NA, steps^2)
+figure_ms <- rep(NA, steps^2)
+figure_death_rate <- rep(NA, steps^2)
+
+index <- 0 
+
+ms <- 0 - 1/steps
+for (i in 1:steps) {
+  ms <- ms + (1/steps)
+  
+  rho <- 0 - 1/steps
+  for (j in 1:steps) {
+    rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 200
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe to access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+    
+    # death rate
+    death_rate <- ((N0 - Sf - Vf - Rf) / N0) * 100000
+    index <- index + 1
+    figure_ms[index] <- ms
+    figure_rho[index] <- rho
+    figure_death_rate[index] <- death_rate
+    
+  } # End of inner loop
+} # End of outer loop
+
+
+# plot loop results
+df <- data.frame(figure_rho, figure_ms, figure_death_rate)
+
+ggplot(df, aes(x = figure_rho, y = figure_ms, fill = figure_death_rate)) + geom_tile() +
+  scale_fill_gradientn(colours = rev(rainbow(5))) + ylim(0,0.6) + 
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified susceptibility,"~m[s])) +
+  labs(fill = "Death rate (per 100,000)") + ggtitle("Figure 7aii: Death rate for varying values of ρ and ms")
+```
+
+
+Figure 7b
+
+```{r, myfigure7b, cache = T, fig.hold = 'hold', out.width="50.0%"}
+# Figure Bi
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.001 # disease-induced death for non-vaccinated individuals per infected per day
+ms <- 0.6  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+mr <- 1  # modification of recovery rate for vaccinated individuals
+steps <- 20
+  
+  # create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_mi <- rep(NA, steps^2)
+  figure_cfr <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  mi <- 0 - 6/steps
+  for (i in 1:steps) {
+    mi <- mi + (6/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 200
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe so you can access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+  
+    
+    # CFR %
+   cfr <-  (N0 - Sf - Vf - Rf) / (N0 - Sf - Vf) * 100
+    index <- index + 1
+    figure_mi[index] <- mi
+    figure_rho[index] <- rho
+    figure_cfr[index] <- cfr
+    
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_mi, figure_cfr)
+
+# plot results
+ggplot(df, aes(x = figure_rho, y = figure_mi, fill = figure_cfr)) + geom_tile() +
+  scale_fill_gradientn(colours = rev(rainbow(5))) + ylim(0,6) + 
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified infectivity,"~m[i])) +
+  labs(fill = "CFR (%)") + ggtitle("Figure 7bi: CFR % for varying values of ρ and mi")
+
+
+# Figure 7bii
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.001 # disease-induced death for non-vaccinated individuals per infected per day
+ms <- 0.6  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+mr <- 1  # modification of recovery rate for vaccinated individuals
+steps <- 20
+  
+  #create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_mi <- rep(NA, steps^2)
+  figure_cfr <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  mi <- 0 - 6/steps
+  for (i in 1:steps) {
+    mi <- mi + (6/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 200
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe to access the colum data
+    sirv_result = as.data.frame(sirv_out)
+ 
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+  
+    
+    # death rate
+   death_rate <- ((N0 - Sf - Vf - Rf) / N0) * 100000
+    index <- index + 1
+    figure_mi[index] <- mi
+    figure_rho[index] <- rho
+    figure_cfr[index] <- death_rate
+    
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_mi, figure_cfr)
+
+# plot results
+ggplot(df, aes(x = figure_rho, y = figure_mi, fill = figure_cfr)) + geom_tile() +
+  scale_fill_gradientn(colours = rev(rainbow(5))) + ylim(0,6) + 
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified infectivity,"~m[i])) +
+  labs(fill = "Death rate (per 100,000)") + ggtitle("Figure 7bii: Death rate for varying values of ρ and mi")
+```
+
+Figure 7c
+
+```{r, myfigure7c, cache = T, fig.hold = 'hold', out.width="50.0%"}
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.001 # disease-induced death for non-vaccinated individuals per infected per day
+ms <- 0.6  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+mi <- 1.25  # modification of recovery rate for vaccinated individuals
+steps <- 20 # model iterations
+  
+  # create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_mr <- rep(NA, steps^2)
+  figure_cfr <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  mr <- 0.5 - 2/steps
+  for (i in 1:steps) {
+    
+    mr <- mr + (2/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 200
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe to access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+  
+    
+    # CFR %
+   cfr <-  (N0 - Sf - Vf - Rf) / (N0 - Sf - Vf) * 100
+    index <- index + 1
+    figure_mr[index] <- mr
+    figure_rho[index] <- rho
+    figure_cfr[index] <- cfr
+    
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_mr, figure_cfr)
+
+# plot results
+ggplot(df, aes(x = figure_rho, y = figure_mr, fill = figure_cfr)) + geom_tile() +
+  scale_fill_gradientn(colours = rev(rainbow(5))) +
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified recovery,"~m[r])) +
+  labs(fill = "CFR (%)")
+
+
+# part 2
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.001  # disease-induced death for non-vaccinated individuals per infected per day
+mi <- 1.25
+ms <- 0.6  # modification of susceptibility for vaccinated individuals
+md <- 0.9  # modification of death rate for vaccinated individuals
+steps <- 20
+  
+  # create vectors for results of the for loop
+  figure_rho <- rep(NA, steps^2)
+  figure_mr <- rep(NA, steps^2)
+  figure_death_rate <- rep(NA, steps^2)
+  
+ index <- 0 
+  
+  mr <- 0.5 - 2/steps
+  for (i in 1:steps) {
+    mr <- mr + (2/steps)
+    
+    rho <- 0 - 1/steps
+    for (j in 1:steps) {
+      rho <- rho + (1/steps)
+    
+    # inits
+    initial_infections <- 20
+    S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+    V0 <- rho*N0 - initial_infections*rho
+    
+    # Run the model
+    model_days <- 200
+    times <- seq(from = 1, to = model_days, by = 0.25)
+    
+    sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                    gamma=gamma, sigma=sigma)
+    
+    sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+    
+    sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+    
+    # switch matrix output of ode to a dataframe so you can access the colum data
+    sirv_result = as.data.frame(sirv_out)
+    
+    # at end of epidemic the vaccinated population is at its max and susceptible at its min
+    Vf <- sirv_result$V[length(times)]
+    Sf <- sirv_result$S[length(times)]
+    Rf <- sirv_result$R[length(times)]
+  
+    
+    # death rate
+   death_rate <- ((N0 - Sf - Vf - Rf) / N0) * 100000
+    index <- index + 1
+    figure_mr[index] <- mr
+    figure_rho[index] <- rho
+    figure_death_rate[index] <- death_rate
+    
+
+ } # End of inner loop
+} # End of outer loop
+
+df <- data.frame(figure_rho, figure_mr, figure_death_rate)
+
+# plot results
+ggplot(df, aes(x = figure_rho, y = figure_mr, fill = figure_death_rate)) + geom_tile() +
+  scale_fill_gradientn(colours = rev(rainbow(5))) + 
+  xlab(expression("Vaccination Coverage, "~rho)) + 
+  ylab(expression("Vaccine modified recovery,"~m[r])) +
+  labs(fill = "Death rate (per 100,000)")
+```
+
+
+Figure 10 (4 parts)
+
+```{r, myfigure10, cache = T, fig.hold = 'hold', out.width="50.0%"}
+# Figure 10ai
+
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0  #disease-induced death for non-vaccinated individuals per infected per day
+
+mi <- 1 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+ms <- 0.8  # modification of susceptibility for vaccinated individuals
+md <- 0.5  # modification of death rate for vaccinated individuals
+
+
+steps <- 100
+# create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+figure_attack_rate <- rep(NA,steps)
+figure_Av <- rep(NA, steps)
+figure_An <- rep(NA, steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+# switch matrix output of ode to a dataframe to access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+figure_attack_rate[i] <- attack_rate
+figure_Av[i] <- Av
+figure_An[i] <- An
+
+}
+# End of loop
+
+# plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_attack_rate, type="l", col="blue", ylim=c(0.3, 0.6), xlab = expression("Vaccination Coverage, "~rho), ylab=("attack rate"), main = "Figure 10ai: Attack rates (A, Av, An) based on varying ρ for a Type 1 vaccine (mi/mr =1, ms = 0.8)", cex.main = 0.85)
+lines(x=figure_rho, y=figure_Av, type="l", col = "red")
+lines(x=figure_rho, y=figure_An, type="l", col = "yellow")
+legend("topright", legend = c("A", "Av", "An"), col=c("blue", "red", "yellow"), pch = 16)
+
+
+# Figure 10aii
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0 # disease-induced death for non-vaccinated individuals per infected per day
+
+mi <- 1 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+ms <- 0.8  # modification of susceptibility for vaccinated individuals
+md <- 0.5  # modification of death rate for vaccinated individuals
+
+
+steps <- 100
+# create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+figure_final_size <- rep(NA,steps)
+figure_Fv <- rep(NA, steps)
+figure_Fn <- rep(NA, steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+# switch matrix output of ode to a dataframe to access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# final size
+final_size <- (V0 - Vf) + (S0 - Sf)
+Fv <- V0 - Vf
+Fn <- S0 - Sf
+  
+figure_rho[i] <- rho
+figure_final_size[i] <- final_size
+figure_Fv[i] <- Fv
+figure_Fn[i] <- Fn
+
+}
+# End of loop
+
+# plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_final_size, type="l", col="blue", ylim=c(0,600), xlab = expression("Vaccination Coverage, "~rho), ylab=("final size"), main = "Figure 10aii: Final sizes (F, Fv, Fn) based on varying ρ for a Type 1 vaccine (mi/mr =1, ms = 0.8)", cex.main = 0.85)
+lines(x=figure_rho, y=figure_Fv, type="l", col = "red")
+lines(x=figure_rho, y=figure_Fn, type="l", col = "yellow")
+legend("topright", legend = c("F", "Fv", "Fn"), col=c("blue", "red", "yellow"), pch = 16)
+
+# Figure 10bi
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0 # disease-induced death for non-vaccinated individuals per infected per day
+
+mi <- 2 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+ms <- 0.4  # modification of susceptibility for vaccinated individuals
+md <- 0.5  # modification of death rate for vaccinated individuals
+
+
+steps <- 100
+# create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+figure_attack_rate <- rep(NA,steps)
+figure_Av <- rep(NA, steps)
+figure_An <- rep(NA, steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+# switch matrix output of ode to a dataframe to access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+figure_attack_rate[i] <- attack_rate
+figure_Av[i] <- Av
+figure_An[i] <- An
+
+}
+# End of loop
+
+# plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_attack_rate, type="l", col="blue", ylim=c(0.2, 0.7), xlab = expression("Vaccination Coverage, "~rho), ylab=("attack rate"), main = "Figure 10bi: Attack rates (A, Av, An) based on varying ρ for a Type 2 vaccine (mi/mr =2, ms = 0.4)", cex.main = 0.85 )
+lines(x=figure_rho, y=figure_Av, type="l", col = "red")
+lines(x=figure_rho, y=figure_An, type="l", col = "yellow")
+legend("topright", legend = c("A", "Av", "An"), col=c("blue", "red", "yellow"), pch = 16)
+
+
+# Figure 10 bii
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0  #disease-induced death for non-vaccinated individuals per infected per day
+
+mi <- 2 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+ms <- 0.4  # modification of susceptibility for vaccinated individuals
+md <- 0.5  # modification of death rate for vaccinated individuals
+
+
+steps <- 100
+# create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+figure_final_size <- rep(NA,steps)
+figure_Fv <- rep(NA, steps)
+figure_Fn <- rep(NA, steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+# switch matrix output of ode to a dataframe to access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# final size
+final_size <- (V0 - Vf) + (S0 - Sf)
+Fv <- V0 - Vf
+Fn <- S0 - Sf
+  
+figure_rho[i] <- rho
+figure_final_size[i] <- final_size
+figure_Fv[i] <- Fv
+figure_Fn[i] <- Fn
+
+}
+# End of loop
+
+# plot results
+par(lwd = 3)
+plot(x=figure_rho, y=figure_final_size, type="l", col="blue", ylim=c(0,600), xlab = expression("Vaccination Coverage, "~rho), ylab=("final size"), main="Figure 10bii: Final sizes (F, Fv, Fn) based on varying ρ for a Type 2 vaccine (mi/mr =2, ms = 0.4)", cex.main = 0.85 )
+lines(x=figure_rho, y=figure_Fv, type="l", col = "red")
+lines(x=figure_rho, y=figure_Fn, type="l", col = "yellow")
+legend("topright", legend = c("F", "Fv", "Fn"), col=c("blue", "red", "yellow"), pch = 16)
+
+```
+
+
+Figure 11 (2 parts)
+
+```{r, myfigure11, cache = T, fig.hold = 'hold', out.width="50.0%"}
+# Figure 11a
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv #+ sigma*I + md*sigma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0 # disease-induced death for non-vaccinated individuals per infected per day
+md <- 0.5  # modification of death rate for vaccinated individuals
+steps <- 100
+
+
+Av.An_Type1 <- rep(NA,steps)
+Av.An_Type2 <- rep(NA,steps)
+
+
+for (j in 1:3) { 
+ms <- 0.8  # modification of susceptibility for vaccinated individuals
+mi <- 1 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+  if (j == 1) {
+
+  }
+    if (j == 2) {
+ms <- 0.4  # modification of susceptibility for vaccinated individuals
+mi <- 2 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+    }
+  
+
+# create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+# switch matrix output of ode to a dataframe to access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+
+if(j == 1) Av.An_Type1[i] <- Av/An
+if(j == 2) Av.An_Type2[i] <- Av/An
+
+
+  } # End of inner loop
+} # End of outer loop
+
+
+#plot results
+par(lwd = 3)
+plot(x=figure_rho, y=Av.An_Type1, type="l", ylim= c(0.2, 1), xlim = c(0,1), col = "blue", xlab = expression("Vaccination Coverage, "~rho), ylab=("Av/An"), main = "Figure 11a: Relative risk of infection (Av/An) based on varying ρ for Type 1 and Type 2 vaccines", cex.main = 0.85 )
+lines(x=figure_rho, y=Av.An_Type2, type="l", col= "red")
+legend("topright", legend = c("Type 1", "Type 2"), col=c("blue", "red"), pch = 16)
+
+# Figure 11b
+# SIRV model
+SIRV <- function(t, init, parms) {
+  with(as.list(c(init, parms)), {
+    dS <- -beta*S*(I + mi*Iv)
+    dV <- -beta*ms*V*(I + mi*Iv)
+    dI <- beta*S*(I + mi*Iv) - gamma*I - sigma*I
+    dIv <- beta*ms*V*(I + mi*Iv) - mr*gamma*Iv - md*sigma*Iv
+    dR <- gamma*I + mr*gamma*Iv 
+    return(list(c(dS, dV, dI, dIv, dR)))
+  })
+}
+
+# parms
+N0 <- 1000 # initial population size
+R0 <- 1.5 # basic reproductive number
+gamma <- 0.33  # recovery rate of non-vaccinated infecteds per infected per day
+sigma <- 0.0  # disease-induced death for non-vaccinated individuals per infected per day
+md <- 0.5  # modification of death rate for vaccinated individuals
+steps <- 100
+
+
+Av.An_Type1 <- rep(NA,steps)
+Av.An_Type2 <- rep(NA,steps)
+
+
+for (j in 1:3) { 
+ms <- 0.8  # modification of susceptibility for vaccinated individuals
+mi <- 1 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+  if (j == 1) {
+
+  }
+    if (j == 2) {
+ms <- 0.4  # modification of susceptibility for vaccinated individuals
+mi <- 2 # vaccine modified infectivity
+mr <- 1  # modification of recovery rate for vaccinated individuals
+    }
+  
+# create vectors for results of the for loop
+figure_rho <- rep(NA,steps)
+
+rho <- 0 - 1/steps
+for (i in 1:steps) {
+  rho <- rho + (1/steps)
+
+# inits
+initial_infections <- 20
+S0 <- (1-rho)*N0 - initial_infections*(1-rho)
+V0 <- rho*N0 - initial_infections*rho
+
+# Run the model
+model_days <- 100
+times <- seq(from = 1, to = model_days, by = 0.25)
+
+sirv_parms <- c(beta = (R0*((sigma + gamma)/N0)), mi=mi, ms=ms, mr=mr, md=md, 
+                gamma=gamma, sigma=sigma)
+
+sirv_init <- c(S=S0, V=V0, I=initial_infections*(1-rho), Iv=initial_infections*rho, R=0)
+
+sirv_out <- ode(func = SIRV, parms = sirv_parms, times = times, y = sirv_init)
+
+# switch matrix output of ode to a dataframe to access the colum data
+sirv_result = as.data.frame(sirv_out)
+
+Vf <- sirv_result$V[length(times)]
+Sf <- sirv_result$S[length(times)]
+
+# attack rate
+Av <- (rho*N0-Vf)/(rho*N0)
+An <- ((1-rho)*N0-Sf)/((1-rho)*N0)
+attack_rate <- rho*Av + (1-rho)*An
+
+figure_rho[i] <- rho
+
+if(j == 1) Av.An_Type1[i] <- 0.8*(Av/An)
+if(j == 2) Av.An_Type2[i] <- 0.6*(Av/An)
+
+
+  } # End of inner loop
+} # End of outer loop
+
+
+# plot results
+par(lwd = 3)
+plot(x=figure_rho, y=Av.An_Type1, type="l", ylim= c(0.2, 1), xlim = c(0,1), col = "blue", xlab = expression("Vaccination Coverage, "~rho), ylab=("Msio*(Av/An)"), main = "Relative risk of severe infection outcome (mSIO*Av/An) based on varying ρ for Type 1 and Type 2 vaccines", cex.main = 0.8)
+lines(x=figure_rho, y=Av.An_Type2, type="l", col= "red")
+legend("topright", legend = c("Type 1", "Type 2"), col=c("blue", "red"), pch = 16)
+```
+

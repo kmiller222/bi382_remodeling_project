@@ -1,0 +1,612 @@
+\PassOptionsToPackage{unicode=true}{hyperref} % options for packages loaded elsewhere
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
+\else % if luatex or xelatex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage[]{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\usepackage{hyperref}
+\hypersetup{
+            pdftitle={Remodeling Project Paper},
+            pdfauthor={Kirsten Miller},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+% set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+
+
+\title{Remodeling Project Paper}
+\author{Kirsten Miller}
+\date{5/15/2020}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\hypertarget{summary-of-the-paper}{%
+\subsubsection{Summary of the paper}\label{summary-of-the-paper}}
+
+For my remodeling project, I recreated the work of a 2020 paper titled
+``Impact of influenza vaccine-modified infectivity on attack rate, case
+fatality ratio and mortality'' by Nah et al.~This paper explores the
+potential impacts of vaccination on a hypothetical influenza outbreak.
+It is well understood that vaccination typically decreases
+susceptibility and reduces the infectious period (leading to a faster
+recovery rate). However, the authors also take into consideration recent
+work that has observed that vaccination may increase viral shedding and
+therefore transmission in vaccinated yet infected individuals. They
+model how vaccine-modified effects (susceptibility, infectivity, and
+recovery) can change the result of an outbreak. The authors used an SIRV
+model, an extension of an SIR model, in order to determine the impact of
+vaccination on the outcomes of a hypothetical influenza outbreak.
+
+The study examined the possible outcomes of the outbreak based on
+various vaccination characteristics. This involved varying both the
+vaccine coverage and vaccine-modified effects and then calculating
+measures indicative of the severity of the outbreak (including the
+attack rate, final size, case fatality ratio, and death rate). This
+study was therefore able to predict the outcomes for a wide variety of
+scenarios with different combinations of levels of vaccine coverage and
+vaccine-modified effects. These scenarios were visualized through a
+variety of figures displaying the outcomes for different combinations of
+varying parameter values.
+
+The main finding of the study was that vaccination with a strong vaccine
+had a positive effect in reducing the severity of the epidemic, even
+with increased viral shedding in vaccinated individuals. Specifically,
+based on the results of their model, vaccination usually reduced the
+attack rate and final size for the epidemic, so vaccination still seemed
+to be found to be productive despite vaccine-modified effects that could
+increase viral shedding. Death rate and case fatality ratio also
+generally decreased as vaccination coverage increased, except when
+vaccine-modified susceptibility was low and vaccination coverage was
+high, this could lead to lower deaths but a higher case fatality ratio.
+
+\hypertarget{description-of-the-model}{%
+\subsubsection{Description of the
+model}\label{description-of-the-model}}
+
+\textbf{Model:} This paper used an SIRV model to model the hypothetical
+influenza outbreaks. This is an extension of an SIR model, which is a
+compartmental model that uses ordinary differential equations to show
+the flow of individuals between different groups (from those who are
+susceptible to the disease, to those who are infected, then to those who
+recover from a disease). The SIRV model adds classes of susceptible
+vaccinated (V) and infected vaccinated (Iv), in addition to the usual
+susceptible (S), infected (I), and recovered (R) population groups of an
+SIR model. Therefore, it incorporates vaccine-modified effects by
+including vaccine-modified infectivity (mi), vaccine-modified
+susceptibility (ms), vaccine-modified recovery (mr), and
+vaccine-modified mortality (md). The SIRV model uses differential
+equations in order to relate continuous rates of change of these
+population classes to the biological processes of disease transmission,
+as shown in the model equations below:
+
+\textbf{Conditions:} The authors of the paper assume the basic
+reproduction number, R0, to be set at a value of 1.5 for all of their
+model runs (except for the Figure 1). The initial population size, N0
+which is used to set the inital age classes in order to solve the model
+equations, is set at 1000 for all of the model runs.
+
+\textbf{Parameters:} Throughout their analysis, the authors of the paper
+generally maintain the same values for the base parameters of their
+model which includes the recovery rate (\(\gamma\)), disease-induced
+mortality (\(\delta\)), and baseline transmission rate (\(\beta\)). They
+then vary the effect of the vaccine on the population by changing the
+values for vaccination coverage (\(\rho\)), vaccine-modified
+susceptibility (ms), vaccine-modified infectivity (mi), and
+vaccine-modified recovery (mr).
+
+\textbf{Values of parameters:} The authors of the paper determine
+parameter values from the literature. For most of their model runs, they
+use a recovery rate (\(\gamma\)) = 1x10-3 and disease-induced mortality
+(\(\delta\)) = 1x10-3 or 0. Baseline transmission rate (\(\beta\)) is
+estimated using the values for R0, \(\delta\), \(\gamma\), and N0,
+calculated using the equation \(\beta= R_0(\delta\gamma/N_0)\). They
+vary the vaccine-modified parameters over a range of values, with
+vaccine coverage (\(\rho\)) = {[}0, 1{]}, vaccine-modified
+susceptibility (ms) = {[}0, 0.6{]}, vaccine-modified infectivity (mi) =
+{[}0, 6{]}, and vaccine-modified recovery (mr) is less than or equal to
+1.
+
+\textbf{Outputs:} By varying combinations of these parameters, the study
+observes how vaccination affects the outcomes of the outbreak. Using the
+SIRV model, the focus of the paper was to understand the outcomes and
+characterize hypothetical outbreaks with different vaccination
+conditions, which is accomplished by calculating measures from the model
+output that represent the outcome of the epidemic (final size, attack
+rate, case fatality ratio and death rate). The final size is the total
+number of infections over the epidemic, which is also recorded for
+vaccinated (Fv) and non-vaccinated (Fn) individuals. The attack rate is
+the proportion of the population that experiences infection over the
+period of the epidemic, which is the sum of the attack rate for
+vaccinated individuals (Av) and the attack rate for non-vaccinated
+individuals (An). A successful vaccination reduces the overall attack
+rate. The case fatality ratio (CFR) is defined as the ratio of deaths
+occurring from an influenza infection to the total number of cases. The
+final measure is the death rate per 100,000 population.
+
+\hypertarget{methods}{%
+\subsubsection{Methods}\label{methods}}
+
+\textbf{Reproducing the model:} I was able to reproduce the paper's SIRV
+model by starting with the SIR model we learned in class and building
+off of it to add the additional classes of susceptible but vaccinated
+individuals (V) and infected but vaccinated individuals (Iv). I was also
+then able to easily include the vaccine modified effect parameters (mi,
+ms, mr, md), as determined by the equations given in the SIRV model. I
+set the initial sizes for each of the population groups (S, V, I, Iv)
+using equations given in the paper, and assumed the initial size of the
+recovered population to be zero. I set up the model by creating a
+function in R for the SIRV equations and ran the function using the
+ode() function (using the deSolve package) to solve the ordinary
+differential equations and calculate the relevant output values.
+
+\textbf{Reproducing the figures:} In order to reproduce most of the
+figures, I looped over the model in order to vary multiple parameters
+simultaneously. Most of the figures required a range of vaccination
+coverage (\(\rho\)) values from 0 to 1 plotted on the x-axis, for
+multiple different values, or a range of values, of one of the other
+vaccine-modified effects (mi, ms, mr). Based on these parameter inputs,
+the figures required the calculation of one of the output measures (eg.
+final size, attack rate, CFR, death rate). I saved the output values for
+each iteration of the loop in a vector to use for the plots.
+
+\textbf{Running the model:} I ran the model with the initial number of
+infections set at 20 individuals (this was not specified by the paper
+but was the number I found to best reproduce the figures). This
+information was fed into the model in order to calculate the initial
+population sizes for the infected non-vaccinated (I) and infected
+vaccinated (Iv) classes, based on the value of vaccination coverage for
+the population (\(\rho\)). I ran the model for a time period of at least
+100 days, finding that the epidemic seemed to have run its course after
+this amount of time. One hundred days was sufficient to successfully
+recreate Figures 2, 3, 5, 10, and 11 (although running the model for 200
+days also worked for these figures), but 200 days were required to
+successfully reproduce Figure 7. For the figures involving the
+vaccine-modified viral shedding, mi/mr ratio, I typically set mr at 1
+and varied mi in order to vary the mi/mr ratio. Overall, I was
+successful in recreating the figures accurately, although there were
+some discrepancies between my recreated figures and the original paper.
+
+\hypertarget{figure-by-figure-breakdown}{%
+\subsubsection{Figure-by-figure
+breakdown}\label{figure-by-figure-breakdown}}
+
+\hypertarget{figure-1}{%
+\paragraph{Figure 1}\label{figure-1}}
+
+Figure 1: Relationship between vaccine-modified effects and the epidemic
+threshold
+
+I found the value of the epidemic threshold based off of varying values
+of ρ and R0, and changing ms and mi/mr. The epidemic threshold is
+calculated by \((1 + (1 - R_0) / (ρR_0)\)
+
+Methods: For Figure 1, I actually did not use the full model, but
+instead used the following equation:
+\(R_v = (1-ρ)R_0 + ((mi*ms)/mr)ρR_0\)
+
+I then rearranged this equation for R0 and plugged in varying values for
+ρ, ms, and mi/mr. My recreation of Figure 1 does noticeably differ from
+the study. However, this should not have an impact on the remainder of
+my results because the calculations involved were isolated from the
+model, which I used for the remainder of the figures.
+
+Results: Maintaining Rv \textless{} 1 requires a higher vaccine-modified
+susceptibility or infectivity (ms or mi) or a lower vaccine-modified
+recovery (mr). Therefore, a balance between ms, mi, and mr is needed.
+
+\hypertarget{figures-2-3}{%
+\paragraph{Figures 2 \& 3}\label{figures-2-3}}
+
+Figures 2\&3: Impact of vaccination on attack rate
+
+Methods: I looped through the model for 3 different values of mi/mr
+(Figure 2) or ms (Figure 3) as well as varying ρ from 0 to 1, and
+calculated the attack rate for each iteration of the loop. I set mr to
+1, and varying mi in order to vary the overall mi/mr ratio.
+
+Results: When vaccine-modified viral shedding (mi/mr) \textgreater{} 1,
+the attack rate for the overall population decreases as vaccination
+coverage increases, but vaccine-modified susceptibility (ms) must also
+be small.
+
+\hypertarget{figure-4}{%
+\paragraph{Figure 4}\label{figure-4}}
+
+Figure 4: Sign of dA/d\(\rho\), the numerical value above which the
+attack rate increases while vaccination coverage (\(\rho\)) increases,
+and below which the attack rate decreases as vaccination coverage
+increases
+
+Methods: I calculated the value for dA/d\(\rho\) while looping through
+the model for varying values of \(\rho\) from 0 to 1 and varying values
+of ms from 0 to 0.6 using the following equation: \$dA/d \rho = \$
+
+Results: Figure 4 shows that for a lower ms value, the attack rate will
+decrease as vaccination coverage increases, but for a higher ms value,
+the attack rate will increase as vaccination coverage increases.
+
+\hypertarget{figure-5}{%
+\paragraph{Figure 5}\label{figure-5}}
+
+Figure 5: Attack rates (5a) and final sizes (5b) for vaccinated and
+non-vaccinated populations
+
+Methods: I looped through the model while varying ρ from 0 to 1, and
+calculated A, Av, \& An (Figure 5a) or F, Fv, \& Fn (Figure 5b) for each
+iteration of the loop.
+
+Results: The vaccine-modified susceptibility (ms) \textless{} 1, so
+attack rate of vaccinated individuals is less than non-vaccinated
+individuals (Av \textless{} An). The attack rate in the total population
+(A) decreases with increasing vaccination coverage, but in this case Av
+and An increase slightly. While Av \textless{} An (when ms
+\textless{}1), the final size of the vaccinated individuals may be
+larger than the final size for the non-vaccinated individuals (Fv
+\textgreater{} Fn) depending on the value of vaccination coverage.
+
+\hypertarget{figure-7}{%
+\paragraph{Figure 7}\label{figure-7}}
+
+Figure 7: Case fatality ratio and death rate
+
+Methods: This was the most difficult figure to recreate (coding-wise)
+because I had to vary two variables along a range of values. I looped
+through the model for varying values of both ρ and ms (Figure 7a) or mi
+(Figure 7b). I calculated CFR or death rate for each iteration of the
+loop.
+
+Results: Lower vaccine-modified susceptibility (ms) may lead to lower
+deaths but a higher CFR (7a), depending on vaccination coverage.
+Vaccination reduces CFR and deaths when vaccine-modified infectivity
+(mi) is low (seen in Figure 7b).
+
+\hypertarget{figure-10}{%
+\paragraph{Figure 10}\label{figure-10}}
+
+Figure 10: Weak (Type 1) vs.~strong (Type 2) vaccines
+
+Methods: I looped through the model while varying ρ from 0 to 1 for each
+type of vaccine. Type 1 (weak) vaccines have lower mi/mr and higher ms
+than Type 2. I calculated A, Av, \& An (Fig 5a) or F, Fv, \& Fn (Fig 5b)
+for each iteration of the loop.
+
+Results: The average attack rate (A) and final size (F) decrease as
+vaccination coverage increases for both Type 1 and 2 vaccines. Av and An
+increase for Type 2 vaccines (seen in Figure 10bi), and final size of
+the vaccinated population (Fv) increases for both types (seen in Figures
+10aii and 10bii).
+
+\hypertarget{figure-11}{%
+\paragraph{Figure 11}\label{figure-11}}
+
+Figure 11: Relative risk of infection and severe infection outcome
+
+Methods: I looped through the model while varying ρ from 0 to 1 for each
+type of vaccine. I calculated the relative risk of infection (Figure
+11a) and or relative risk of severe infection outcome (Figure 11b) for
+each iteration of the loop.
+
+Results: The relative risk of severe outcome is lower than relative risk
+of infection for both types of vaccines. Both relative risk of infection
+and relative risk of severe infection outcome are lower for Type 2
+(strong) vaccines.
+
+\hypertarget{discussion}{%
+\subsubsection{Discussion}\label{discussion}}
+
+\hypertarget{levins-characterization-of-models-generality-precision-and-realism}{%
+\paragraph{1. Levin's characterization of models (generality, precision
+and
+realism)}\label{levins-characterization-of-models-generality-precision-and-realism}}
+
+(This semester you read and the class discussed Levins' strategy of
+model building in population biology, where he characterized models as
+generally maximizing two and sacrificing one of the following:
+generality, precision, and realism. Please describe how your study fits
+into this framework, and justify.)
+
+This study fits into Levins' framework by maximizing generality and
+precision while sacrificing realism. The model maintained generality by
+showing the results of an outbreak for many different combinations of
+varied parameter values. It did this by presenting a multitude of
+scenarios in which multiple parameters were varied over a range of
+values. This was accomplished by running the model many times with
+different conditions and therefore determining the range of possible
+outcomes. The model also had a high level of precision because specific
+results could be determined for a particular set of parameter values.
+Unique values could be chosen for each of the parameters individually,
+and exact values describing the epidemic (eg. final size, attack rate)
+could be obtained from the model specific to the input. Each point on a
+figure in the paper represented a precise scenario and outcome. The
+study therefore found very specific results for each aspect of the
+hypothetical influenza outbreak that it modeled.
+
+I thought that the area in which the model was most lacking was realism.
+While the model did have very precise conditions and demonstrated
+generality by showing the results for many precise scenarios, I felt
+that there was a disconnect between these scenarios and real life. The
+paper did not discuss any potential adjustments that would have to be
+made for different real scenarios or different locations, nor did it
+consider outside factors that could occur in real outbreaks (such as
+location, traveling/rate of contacts, or population density). These
+factors could have been acknowledged and accounted for to some extent
+through varying the R0 value, but the authors kept R0 set at 1.5 for all
+of their simulations except for Figure 1. They did acknowledge that R0
+is known to range from 1.47 to 2.27 for influenza, but they did not
+adjust this in any of their other simulations after Figure 1. In real
+life scenarios, the reproduction number varies by outbreak and also
+varies of the course of an outbreak. The R0 value also impacts the
+baseline transmission rate (\(\beta\)), so this value was also assumed
+to be constant. The study also did not include information about how the
+outbreak started, and it was unclear how many infections they assumed at
+the start of the outbreak. This would also be important information to
+know in applying this model to a real world outbreak.
+
+I think that because their model is very precise but also can be
+generalized to many scenarios, it will be possible to apply this work to
+real situations, but I still think that they could have addressed this
+more directly in the paper. While the study's results were both precise
+and able to be generalized, the results felt disconnected from reality.
+At the least, I think the study could have done a better job explaining
+how their results could apply to real outbreaks of influenza.
+
+\hypertarget{reproducibility}{%
+\paragraph{2. Reproducibility}\label{reproducibility}}
+
+(The idea of reproducibility is a cornerstone of scientific
+methodologies. Please describe two ways in which your study facilitated
+reproducibility and three two that your study could have improved, and
+justify.)
+
+This study was very reproducible in the fact that it very clearly
+defined the model equations and parameters. The study also did a good
+job defining the parameters, including the values and equations used to
+calculate values for the parameters. I was able to very closely recreate
+the figures because nearly all of the parameters were explicitly defined
+for each figure. The study was also reproducible because it used an SIRV
+model, an extension of the well-known SIR model, which made it very easy
+to understand and recreate for someone who has prior experience with SIR
+models for disease.
+
+What was more difficult to reproduce about the study was the exact
+conditions under which the authors ran their model. The study did not
+discuss how many model runs they performed, how long they assumed the
+outbreak to last, or the initial number of infections for the outbreak.
+The lack of information in this area not only makes it more difficult
+for someone to precisely replicate their model, but also leaves a gap of
+information that is important to understanding the significance of their
+model to future situations. Understanding how an epidemic started and
+how long it lasted is key in interpreting and applying their findings.
+To improve reproducibility, the study could have been more specific by
+defining the number of model runs, initial number of infections, and
+duration of the outbreak that they used for their model (and whether
+this varied at all between figures).
+
+\hypertarget{follow-up-study}{%
+\paragraph{3. Follow-up study}\label{follow-up-study}}
+
+(In your opinion, what would be the most interesting follow-up study to
+yours? Why?)
+
+I think that an interesting and important follow-up study would involve
+varying the R0 value along with vaccine-modified effects. It is clear
+that the R0 value for a disease has a major impact on the outcomes of an
+outbreak and its epidemic potential. It is also known that the R0 value
+varies for influenza (as noted by this paper) both by outbreak and over
+time during an outbreak. Since this paper almost explicitly modeled with
+an R0 value of 1.5, I think it would be important to build upon the work
+of this study by varying R0 while investigating the various scenarios.
+The study should focus on whether different R0 values could change the
+impact of vaccine-modified effects on an outbreak.
+
+In addition, I think that more studies are needed on vaccine-modified
+effects. I did not know anything about vaccine-modified effects before
+reading this paper. This study cites one prior paper which observed a
+potential increase in viral shedding in vaccinated infected individuals.
+Therefore, the hypothetical scenarios examined by this study do not seem
+to have much of a scientifically investigated basis. More research on
+vaccine-modified effects would be important because it would help
+determine which scenarios explored by this study are most likely to
+actually transpire. Since this study did a good job exploring a range of
+possibilities, it is likely that they covered some realistic scenarios,
+but it would be important to better understand vaccine-modified effects
+to know how to apply the work of this study.
+
+\hypertarget{my-understanding-of-modeling}{%
+\paragraph{4. My understanding of
+``modeling''}\label{my-understanding-of-modeling}}
+
+(I hope that throughout the course you learned a lot about ecological
+``modeling.'' ``Modeling'' is a broad term that can mean many different
+things. Please reflect on how your understanding of ``modeling'' has
+changed from the beginning of the semester.)
+
+I wish that I had written down what I thought ``modeling'' meant at the
+beginning of the semester, but I would guess that my understanding has
+changed significantly. Before taking this class, I had a much more vague
+idea of what modeling is and how it can be used. Through BI382, I have
+been exposed to a wide range of ecological models, from the base models
+for density-independent and density-independent growth, to age and stage
+structure, to spatial patterns and metapopulation modeling, and finally
+and most relevantly to disease modeling.
+
+I now can build off of the basic definition of a model as ``an
+abstraction of reality'' to state and understand the importance of
+models in ecology and beyond. Instead of considering models to be
+abstract and complex mathematical predictions, I now think of models as
+a way to describe relationships between entities we observe (and
+although complex math is often useful to describe these relationships, a
+model involves more than math itself). While I now understand that the
+basis of a model is to describe relationships, perhaps the most
+important application of models is to determine how these relationships
+might change with varying conditions (such as time). And since we often
+don't know the exact values that should be used to describe things as
+conditions change, models allow us to explore and describe a range of
+possibilities as conditions change. Over the course of the semester I
+have become more aware of the power and importance of models to be
+informative on a variety of scales and subjects. While the focus of this
+semester was on modeling ecological subjects, studying a range of
+topics, types, complexities of models within the field of ecology has
+opened my mind to the flexibility of models and allowed me to realize
+how models can be used to describe many types of relationships in many
+fields of study.
+
+Although it is technically outside of the main curriculum of BI382, it
+would be shortsighted not to acknowledge how my understanding of
+modeling has been changed by living through the current COVID-19
+pandemic. Taking this class during a time period in which models are
+being used to predict our future and influence (or sometimes
+unfortunately not influence) imminent important decisions from
+policymakers has been incredibly thought-provoking and enlightening as
+to the role models play in everyday life. This has demonstrated to me
+that although even the best models by the most skilled experts are not
+going to be perfectly accurate, modeling still provides important, and
+sometimes unexpected, insights that cannot be gleaned from simple
+observation. The current use of models for COVID-19 has also highlighted
+the extreme fundamental importance of using models for disease ecology
+and our current future in light of the pandemic.
+
+In sum, my understanding of models has evolved substantially over the
+course of the semester as a result of spending a lot of time learning
+about, understanding, and creating models. My perception of models has
+been both clarified and broadened as I have gained a better
+understanding of what models are and the many ways in which they can be
+used. I have learned that while models can range from simple to complex,
+general to precise, and realistic to abstract, they are extremely
+powerful in their ability to describe and predict current and future
+relationships.
+
+\hypertarget{variables-and-parameters}{%
+\subsubsection{Variables and
+Parameters}\label{variables-and-parameters}}
+
+\hypertarget{state-variables}{%
+\subparagraph{State Variables}\label{state-variables}}
+
+\begin{itemize}
+\tightlist
+\item
+  Susceptible (non-vaccinated) population (S)
+\item
+  Susceptible vaccinated population (V)
+\item
+  Infected (non-vaccinated) population (I)
+\item
+  Infected vaccinated population (Iv)
+\item
+  Recovered population (R)
+\item
+  Initial population size (N0) = 1000
+\end{itemize}
+
+\hypertarget{fixed-parameters}{%
+\subparagraph{Fixed parameters}\label{fixed-parameters}}
+
+(Some of these parameters could technically change over time but were
+held constant in the model)
+
+\begin{itemize}
+\tightlist
+\item
+  Recovery rate for non-vaccinated individuals (\(\gamma\)) = 0.33
+\item
+  Disease-induced mortality (\(\delta\)) = 1x10-3 or 0
+\item
+  Baseline transmission rate (\(\beta\)) \(= R_0[(\delta\gamma/N_0)]\)
+\item
+  Initial recovered population = 0
+\item
+  S0, V0, I0, Iv0: calculated based on the number of initial infections
+  (sometimes varied because the paper did not specify the number of
+  initial infections)
+\end{itemize}
+
+\hypertarget{varied-parameters}{%
+\subparagraph{Varied parameters:}\label{varied-parameters}}
+
+\begin{itemize}
+\tightlist
+\item
+  Vaccine coverage (\(\rho\)) = {[}0, 1{]}
+\item
+  Vaccine-modified susceptibility (ms) = {[}0, 0.6{]}
+\item
+  Vaccine-modified infectivity (mi) = {[}0, 6{]}
+\item
+  Vaccine-modified recovery (mr) (less than or equal to 1)
+\item
+  Vaccine-modified mortality (md) = {[}0, 1{]}
+\item
+  Relative risk of severe infection outcome (Msio) = {[}0, 1{]}
+\item
+  Relative risk of severe infection outcome in vaccinated individuals to
+  non-vaccinated individuals (RRsio) = Calculated
+\item
+  Duration of epidemic = {[}100, 200{]} (varied because the paper did
+  not specify)
+\end{itemize}
+
+\hypertarget{paper-citation}{%
+\paragraph{Paper Citation}\label{paper-citation}}
+
+Nah, K., Alavinejad, M., Rahman, A., Heffernan, J. M., \& Wu, J. (2020).
+Impact of influenza vaccine-modified infectivity on attack rate, case
+fatality ratio and mortality. Journal of Theoretical Biology, 492,
+110190.
+
+\end{document}
