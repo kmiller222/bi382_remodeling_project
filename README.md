@@ -1,7 +1,7 @@
 # bi382_remodeling_project
 ### SIRV disease model of the impacts of vaccination on a hypothetical influenza outbreak, based on a recreation of the paper, Impact of influenza vaccine-modified infectivity on attack rate, case fatality ratio, and mortality (Nah et al. 2020)
 
-This project is my recreation of the modeling of influenza in a 2020 paper titled “Impact of influenza vaccine-modified infectivity on attack rate, case fatality ratio and mortality” by Nah et al., which I completed for my Ecological Modeling (BI382) class at Colby College in 2020.
+This project is my recreation of the modeling of influenza in a 2020 paper titled “Impact of influenza vaccine-modified infectivity on attack rate, case fatality ratio and mortality” by Nah et al., which I completed for my Ecological Modeling (BI382) class at Colby College in 2020. See https://kmiller222.github.io/bi382_remodeling_project/ for my final report.
 
 ## Model Code
 The following code is what I used as a base SIRV model. The SIRV model uses differential equations in order to relate continuous rates of change of these population classes to the biological processes of disease transmission, which I created in R by using the `deSolve` package. The SIRV model adds classes of susceptible vaccinated (V) and infected vaccinated (Iv), in addition to the usual susceptible (S), infected (I), and recovered (R) population groups of an SIR model to also incorporate vaccine-modified effects. Parameters were changed throughout the project to reflect different vaccination and disease-characteristic scenarios. 
